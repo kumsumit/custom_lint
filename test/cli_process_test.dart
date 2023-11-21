@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:custom_lint/src/output/output_format.dart';
 import 'package:custom_lint/src/package_utils.dart';
 import 'package:test/test.dart';
 import 'package:test_process/test_process.dart';
@@ -147,28 +148,69 @@ No issues found!
       },
     );
 
-    test(
-      'found lints',
-      () async {
-        final plugin = createPlugin(name: 'test_lint', main: oyPluginSource);
+    for (final format in OutputFormatEnum.values.map((e) => e.name)) {
+      test(
+        'found lints format: $format',
+        () async {
+          final plugin = createPlugin(name: 'test_lint', main: oyPluginSource);
 
-        final app = createLintUsage(
-          name: 'test_app',
-          source: {
-            'lib/main.dart': 'void fn() {}',
-            'lib/another.dart': 'void fail() {}',
-          },
-          plugins: {'test_lint': plugin.uri},
-        );
+          final app = createLintUsage(
+            name: 'test_app',
+            source: {
+              'lib/main.dart': 'void fn() {}',
+              'lib/another.dart': 'void fail() {}',
+            },
+            plugins: {'test_lint': plugin.uri},
+          );
 
-        final process = await Process.run(
-          'dart',
-          [customLintBinPath],
-          workingDirectory: app.path,
-        );
+          final process = await Process.run(
+            'dart',
+            [
+              customLintBinPath,
+              '--format',
+              format,
+            ],
+            workingDirectory: app.path,
+          );
 
-        expect(trimDependencyOverridesWarning(process.stderr), isEmpty);
-        expect(process.stdout, '''
+          expect(trimDependencyOverridesWarning(process.stderr), isEmpty);
+
+          if (format == 'json') {
+            final dir = Directory(app.path).resolveSymbolicLinksSync();
+            final json = jsonEncode({
+              'version': 1,
+              'diagnostics': [
+                {
+                  'code': 'oy',
+                  'severity': 'INFO',
+                  'type': 'LINT',
+                  'location': {
+                    'file': '$dir/lib/another.dart',
+                    'range': {
+                      'start': {'offset': 5, 'line': 1, 'column': 6},
+                      'end': {'offset': 9, 'line': 1, 'column': 10},
+                    },
+                  },
+                  'problemMessage': 'Oy',
+                },
+                {
+                  'code': 'oy',
+                  'severity': 'INFO',
+                  'type': 'LINT',
+                  'location': {
+                    'file': '$dir/lib/main.dart',
+                    'range': {
+                      'start': {'offset': 5, 'line': 1, 'column': 6},
+                      'end': {'offset': 7, 'line': 1, 'column': 8},
+                    },
+                  },
+                  'problemMessage': 'Oy',
+                }
+              ],
+            });
+            expect(process.stdout, 'Analyzing...\n\n$json\n');
+          } else {
+            expect(process.stdout, '''
 Analyzing...
 
   lib/another.dart:1:6 • Oy • oy • INFO
@@ -176,9 +218,11 @@ Analyzing...
 
 2 issues found.
 ''');
-        expect(process.exitCode, 1);
-      },
-    );
+          }
+          expect(process.exitCode, 1);
+        },
+      );
+    }
 
     test(
       'missing package_config.json',
@@ -398,8 +442,7 @@ So, because custom_lint_client depends on test_lint from path, version solving f
 
         // Skip empty lines
         await process.stdout.skip(2);
-        expect(await process.stdout.next, 'Manual Reload...');
-        expect(await process.stdout.next, 'Analyzing...');
+        expect(await process.stdout.next, 'Manual re-lint...');
         await process.stdout.skip(1);
         expect(await process.stdout.next, 'No issues found!');
 
@@ -460,8 +503,7 @@ So, because custom_lint_client depends on test_lint from path, version solving f
 
         // Skip empty lines
         await process.stdout.skip(2);
-        expect(await process.stdout.next, 'Manual Reload...');
-        expect(await process.stdout.next, 'Analyzing...');
+        expect(await process.stdout.next, 'Manual re-lint...');
         await process.stdout.skip(1);
         expect(
           await process.stdout.next,

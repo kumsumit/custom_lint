@@ -69,7 +69,7 @@
     },
     {
       "name": "custom_lint",
-      "rootUri": "file:///home/sumit/.pub-cache/hosted/pub.dev/custom_lint-0.5.3",
+      "rootUri": "file:///home/sumit/.pub-cache/hosted/pub.dev/custom_lint-0.5.7",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },
@@ -188,7 +188,7 @@
       "languageVersion": "2.14"
     }
   ],
-  "generated": "2023-09-13T13:26:38.715199Z",
+  "generated": "2023-11-21T06:09:42.324114Z",
   "generator": "pub",
-  "generatorVersion": "3.1.1"
+  "generatorVersion": "3.2.0"
 }
